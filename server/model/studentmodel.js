@@ -3,6 +3,9 @@ const mongoose = require('mongoose');
 const studentSchema = new mongoose.Schema({
   name:String,
   rollno:String,
+  leave:Number,
+  half:Number,
+  full:Number
 });
 const attendanceSchema = new mongoose.Schema({
     student_id:{

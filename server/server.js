@@ -17,7 +17,9 @@ app.post('/addstudent', async (req, res) => {
   const { name, rollno } = req.body;
   const student = new studentModel({
     name,
-    rollno
+    rollno,
+    leave:0,
+    half:0,full:0
   });
   await student.save();
   res.json({ message: 'Data from Express' });
@@ -34,39 +36,75 @@ app.post('/markattendance', async (req, res) => {
     year
   });
   await attendance.save();
+  if(mark==1){
+     updateu= ({
+       $inc: { leave: 1 } 
+    })
+  }else if(mark==2){
+     updateu= ({ $inc: { half: 1 } })
+  }else{
+     updateu= ({ $inc: { full: 1 } })
+  }
+  await studentModel.updateOne({ _id }, updateu);
+
   res.json({ message: 'Success' });
 
 });
 
 app.post('/data',async (req, res) => {
-  // const userData = await studentModel.find();
   const { currentyear,currentMonth} = req.body;
+
   const userData = await studentModel.aggregate([
     {
       $lookup: {
         from: "attendances",
-        localField: "_id",
-        foreignField: "student_id",
+        let: { studentId: "$_id" },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ["$student_id", "$$studentId"] },
+                  {
+                    $or: [
+                      { $eq: ["$year", currentyear] },
+                      { $eq: ["$month", currentMonth] }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ],
         as: "attendances"
       }
+    },
+    {
+      $addFields: {
+        attendances: {
+          $ifNull: ["$attendances", []]
+        }
+      }
     }
-    // {
-    //   $match: {
-    //     $or: [
-    //       { "studentdata.year": currentyear },
-    //       { "studentdata.month": currentMonth },
-          
-    //     ]
-    //   }
-    // }
-    
   ]);
 console.log(userData);
   res.json({ message: 'Data from Express',userData });
 });
 
 
-// Start the server
+
+app.get('/list', async (req, res) => {
+  try {
+    const userData = await studentModel.find();
+    res.json({ message: 'Success', userData });
+  } catch (error) {
+    console.error('Error fetching data:', error.message);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+
+
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
